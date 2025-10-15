@@ -1,0 +1,12 @@
+## Interface: 110005
+## Author: Mageiden
+## Title: StealthHelper
+## Notes: Shows the timer of the next DoT tick on your character.
+## DefaultState: enabled
+## Version: v0.0.1
+## SavedVariables: StealthHelperDB
+embeds.xml
+
+Config.lua
+StealthHelper.lua
+Abilities.lua
