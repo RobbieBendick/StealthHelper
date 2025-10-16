@@ -9,7 +9,17 @@ function SH:COMBAT_LOG_EVENT_UNFILTERED()
     if (event == "SPELL_AURA_APPLIED" or event == "SPELL_AURA_REFRESH") and auraType == "DEBUFF" then
         self:EnsureTicker()
         local tickInterval = self.dotTickIntervals[spellId]
-        local duration = select(6, UnitDebuff(destName, spellName))
+        local duration, icon
+        for i = 1, 40 do
+            local debuffName, debuffRank, debuffIcon, debuffCount, debuffType, debuffDuration, debuffExpirationTime, debuffSource, debuffIsStealable, debuffShouldConsolidate, debuffSpellId = UnitDebuff(destName, i)
+            if not debuffName then break end
+            if debuffSpellId == spellId then
+                duration = debuffDuration
+                icon = debuffIcon
+                break
+            end
+        end
+        
         if duration and tickInterval then
             local numTicks = math.floor(duration / tickInterval + 0.5)
 
@@ -18,7 +28,7 @@ function SH:COMBAT_LOG_EVENT_UNFILTERED()
                 caster = sourceGUID,
                 spellName = spellName,
                 spellId = spellId,
-                spellIcon = C_Spell.GetSpellTexture(spellId),
+                spellIcon = icon or C_Spell.GetSpellTexture(spellId),
                 tickInterval = tickInterval,
                 numTicks = numTicks,
                 appliedAt = GetTime(),

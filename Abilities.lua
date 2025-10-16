@@ -1,6 +1,7 @@
 local _, addon = ...
 local SH = _G.LibStub("AceAddon-3.0"):GetAddon(addon.name)
 
+-- spell id -> tick interval
 SH.dotTickIntervals = {
     -- warlock
     [172]       = 3,    -- Corruption
