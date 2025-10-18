@@ -32,6 +32,8 @@ local MIN_HEIGHT = 48
 local MAX_HEIGHT = 200
 local SECONDARY_ICON_SIZE_MULTIPLIER = 0.5
 local PRIMARY_ICON_SIZE_MULTIPLIER = 0.7
+local MAX_DOT_COUNT = 3
+local TITLE_BAR_HEIGHT = 8
 
 
 function SH:CreateTimerFrame()
@@ -85,10 +87,8 @@ function SH:CreateTimerFrame()
             self._isAdjustingSize = false
         end
     end)
-
-    local titleBarHeight = 8
     frame.titleBar = CreateFrame("Frame", "StealthHelperTitleBar", frame)
-    frame.titleBar:SetSize(self.db.profile.parentFrame.dimensions.width, titleBarHeight)
+    frame.titleBar:SetSize(self.db.profile.parentFrame.dimensions.width, TITLE_BAR_HEIGHT)
     frame.titleBar:SetPoint("TOP", frame, "TOP", 0, 0)
     frame.titleBar.text = frame.titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalTiny")
     frame.titleBar.text:SetPoint("CENTER", frame.titleBar, "CENTER", 0, 0)
@@ -132,7 +132,7 @@ function SH:CreateTimerFrame()
     frame.resizeHandle = CreateFrame("Button", nil, frame)
     frame.resizeHandle:SetSize(16, 16)
     frame.resizeHandle:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
-    frame.resizeHandle:SetFrameStrata("HIGH")
+    frame.resizeHandle:SetFrameStrata("MEDIUM")
     
     frame.resizeHandle.bg = frame.resizeHandle:CreateTexture(nil, "BACKGROUND")
     frame.resizeHandle.bg:SetAllPoints()
@@ -184,20 +184,15 @@ function SH:CreateTimerFrame()
             self:SetScript("OnUpdate", nil)
             SH:UpdateFrameLayout(self:GetParent())
         end
-        self.bg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
-        GameTooltip:Hide()
+        self.bg:SetColorTexture(0.2, 0.2, 0.2, 0)
     end)
     
     frame.resizeHandle:SetScript("OnEnter", function(self)
-        self.bg:SetColorTexture(0.4, 0.4, 0.4, 0)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Drag to resize", 1, 1, 1, 1)
-        GameTooltip:Show()
+        self.bg:SetColorTexture(0.4, 0.4, 0.4, 0.5)
     end)
     
     frame.resizeHandle:SetScript("OnLeave", function(self)
         self.bg:SetColorTexture(0.2, 0.2, 0.2, 0)
-        GameTooltip:Hide()
     end)
     
     SH:UpdateFrameLockState(frame)
@@ -267,7 +262,7 @@ function SH:UpdateTimer()
     if #upcoming == 0 then
         -- Show placeholder timer text when no DoTs are active
         local dotCount = self.db.profile.parentFrame.dotCount
-        local maxDisplay = (dotCount == 0) and 4 or dotCount
+        local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
         
         for i = 1, maxDisplay do
             if self.timerFrame.dotTimers and self.timerFrame.dotTimers[i] then
@@ -276,7 +271,7 @@ function SH:UpdateTimer()
         end
         
         -- Hide unused timer slots
-        for i = maxDisplay + 1, 4 do
+        for i = maxDisplay + 1, MAX_DOT_COUNT do
             if self.timerFrame.dotTimers and self.timerFrame.dotTimers[i] then
                 self.timerFrame.dotTimers[i]:Hide()
             end
@@ -291,7 +286,7 @@ function SH:UpdateTimer()
     if primaryTime <= 0 then
         -- Show placeholder timer text when DoTs have expired
         local dotCount = self.db.profile.parentFrame.dotCount
-        local maxDisplay = (dotCount == 0) and 4 or dotCount
+        local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
         
         for i = 1, maxDisplay do
             if self.timerFrame.dotTimers and self.timerFrame.dotTimers[i] then
@@ -315,7 +310,7 @@ function SH:UpdateTimer()
 
     -- Get the number of DoTs to display
     local dotCount = self.db.profile.parentFrame.dotCount
-    local maxDisplay = (dotCount == 0) and 4 or dotCount
+    local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
 
     -- Display DoTs up to the configured count
     for i = 1, maxDisplay do
@@ -344,7 +339,7 @@ function SH:UpdateTimer()
     end
 
     -- Hide any remaining slots beyond maxDisplay
-    for i = maxDisplay + 1, 4 do
+    for i = maxDisplay + 1, MAX_DOT_COUNT do
         if self.timerFrame.dotIcons and self.timerFrame.dotIcons[i] then
             self.timerFrame.dotIcons[i]:Hide()
         end
@@ -386,34 +381,51 @@ function SH:UpdateIconLayout(frame)
     local containerWidth = frame:GetWidth()
     local containerHeight = frame:GetHeight()
     local dotCount = self.db.profile.parentFrame.dotCount
-    local maxDisplay = (dotCount == 0) and 4 or dotCount
+    local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
     
-    -- Calculate icon sizes - primary is always largest, others are 1/3 size
-    local titleBarHeight = 8
-    local availableHeight = containerHeight - titleBarHeight
-    local primarySize = math.min(containerWidth, availableHeight) * 0.7 -- Primary takes 70% of available space
-    local secondarySize = primarySize * SECONDARY_ICON_SIZE_MULTIPLIER -- Secondary icons are smaller than primary
+    -- calculate available space (account for titlebar and padding)
+    local padding = 4 -- Padding from frame edges
+    local availableHeight = containerHeight - TITLE_BAR_HEIGHT - (padding * 2)
+    local availableWidth = containerWidth - (padding * 2)
     
-    -- Position and size icons
+    -- calculate base icon sizes
+    local basePrimarySize = math.min(availableWidth, availableHeight) * PRIMARY_ICON_SIZE_MULTIPLIER
+    local baseSecondarySize = basePrimarySize * SECONDARY_ICON_SIZE_MULTIPLIER
+    
+    -- position and size icons
     if maxDisplay == 1 then
-        -- Single icon centered
-        frame.dotIcons[1]:SetSize(primarySize, primarySize)
-        frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", 0, 0)
+        -- single icon centered - use available space
+        local iconSize = math.min(availableWidth, availableHeight) * 0.8
+        frame.dotIcons[1]:SetSize(iconSize, iconSize)
+        frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", 0, -TITLE_BAR_HEIGHT / 2)
     else
-        -- Primary icon (next tick) + secondary icons (other DoTs)
+        -- Multiple icons - calculate if they fit, scale down if needed
         local spacing = 5
+        local totalWidthNeeded = basePrimarySize + spacing + (baseSecondarySize + spacing) * (maxDisplay - 1)
+        
+        -- scale down if icons don't fit in available width
+        local scaleFactor = 1
+        if totalWidthNeeded > availableWidth then
+            scaleFactor = availableWidth / totalWidthNeeded
+        end
+        
+        -- apply scaling
+        local primarySize = basePrimarySize * scaleFactor
+        local secondarySize = baseSecondarySize * scaleFactor
+        
+        -- recalculate total width with scaled sizes
         local totalWidth = primarySize + spacing + (secondarySize + spacing) * (maxDisplay - 1)
         local startX = -totalWidth / 2
         
         -- Primary icon (next tick) - always first and largest
         frame.dotIcons[1]:SetSize(primarySize, primarySize)
-        frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", startX + primarySize/2, 0)
+        frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", startX + primarySize/2, -TITLE_BAR_HEIGHT / 2)
         
         -- Secondary icons (other DoTs) - evenly spaced and smaller
         for i = 2, maxDisplay do
             local xOffset = startX + primarySize + spacing + (secondarySize + spacing) * (i - 2) + secondarySize/2
             frame.dotIcons[i]:SetSize(secondarySize, secondarySize)
-            frame.dotIcons[i]:SetPoint("CENTER", frame, "CENTER", xOffset, 0)
+            frame.dotIcons[i]:SetPoint("CENTER", frame, "CENTER", xOffset, -TITLE_BAR_HEIGHT / 2)
         end
     end
 end
@@ -424,34 +436,51 @@ function SH:UpdateIconLayoutOnly(frame)
     local containerWidth = frame:GetWidth()
     local containerHeight = frame:GetHeight()
     local dotCount = self.db.profile.parentFrame.dotCount
-    local maxDisplay = (dotCount == 0) and 4 or dotCount
+    local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
     
-    -- Calculate icon sizes - primary is always largest, others are 1/3 size
-    local titleBarHeight = 8
-    local availableHeight = containerHeight - titleBarHeight
-    local primarySize = math.min(containerWidth, availableHeight) * PRIMARY_ICON_SIZE_MULTIPLIER -- Primary takes 70% of available space
-    local secondarySize = primarySize * SECONDARY_ICON_SIZE_MULTIPLIER -- Secondary icons are smaller than primary
+    -- calculate available space (account for titlebar and padding)
+    local padding = 4 -- Padding from frame edges
+    local availableHeight = containerHeight - TITLE_BAR_HEIGHT - (padding * 2)
+    local availableWidth = containerWidth - (padding * 2)
     
-    -- Position and size icons
+    -- calculate base icon sizes
+    local basePrimarySize = math.min(availableWidth, availableHeight) * PRIMARY_ICON_SIZE_MULTIPLIER
+    local baseSecondarySize = basePrimarySize * SECONDARY_ICON_SIZE_MULTIPLIER
+    
+    -- position and size icons
     if maxDisplay == 1 then
-        -- Single icon centered
-        frame.dotIcons[1]:SetSize(primarySize, primarySize)
-        frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", 0, 0)
+        -- single icon centered - use available space
+        local iconSize = math.min(availableWidth, availableHeight) * 0.8
+        frame.dotIcons[1]:SetSize(iconSize, iconSize)
+        frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", 0, -TITLE_BAR_HEIGHT / 2)
     else
-        -- Primary icon (next tick) + secondary icons (other DoTs)
+        -- multiple icons - calculate if they fit, scale down if needed
         local spacing = 5
+        local totalWidthNeeded = basePrimarySize + spacing + (baseSecondarySize + spacing) * (maxDisplay - 1)
+        
+        -- scale down if icons don't fit in available width
+        local scaleFactor = 1
+        if totalWidthNeeded > availableWidth then
+            scaleFactor = availableWidth / totalWidthNeeded
+        end
+        
+        -- apply scaling
+        local primarySize = basePrimarySize * scaleFactor
+        local secondarySize = baseSecondarySize * scaleFactor
+        
+        -- recalculate total width with scaled sizes
         local totalWidth = primarySize + spacing + (secondarySize + spacing) * (maxDisplay - 1)
         local startX = -totalWidth / 2
         
-        -- Primary icon (next tick) - always first and largest
+        -- primary icon (next tick) - always first and largest
         frame.dotIcons[1]:SetSize(primarySize, primarySize)
-        frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", startX + primarySize/2, 0)
+        frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", startX + primarySize/2, -TITLE_BAR_HEIGHT / 2)
         
-        -- Secondary icons (other DoTs) - evenly spaced and smaller
+        -- secondary icons (other DoTs) - evenly spaced and smaller
         for i = 2, maxDisplay do
             local xOffset = startX + primarySize + spacing + (secondarySize + spacing) * (i - 2) + secondarySize/2
             frame.dotIcons[i]:SetSize(secondarySize, secondarySize)
-            frame.dotIcons[i]:SetPoint("CENTER", frame, "CENTER", xOffset, 0)
+            frame.dotIcons[i]:SetPoint("CENTER", frame, "CENTER", xOffset, -TITLE_BAR_HEIGHT / 2)
         end
     end
 end
@@ -467,7 +496,7 @@ function SH:UpdateFrameLayout(frame)
     self.db.profile.parentFrame.dimensions.width = newWidth
     self.db.profile.parentFrame.dimensions.height = newHeight
     
-    -- Update icon layout when frame is resized
+    -- update icon layout when frame is resized
     self:UpdateIconLayout(frame)
     
     AceConfigRegistry:NotifyChange(self.name)
@@ -524,7 +553,7 @@ function SH:UpdateDotCount(frame)
     
     local dotCount = self.db.profile.parentFrame.dotCount
     
-    -- Hide all icons first
+    -- hide all icons first
     for i = 1, 4 do
         if frame.dotIcons[i] then
             frame.dotIcons[i]:Hide()
@@ -534,9 +563,9 @@ function SH:UpdateDotCount(frame)
         end
     end
     
-    -- Show icons and timers based on count
+    -- show icons and timers based on count
     if dotCount == 0 then
-        -- Show all icons and timers
+        -- show all icons and timers
         for i = 1, 4 do
             if frame.dotIcons[i] then
                 frame.dotIcons[i]:Show()
@@ -546,7 +575,7 @@ function SH:UpdateDotCount(frame)
             end
         end
     else
-        -- Show only the specified number
+        -- show only the specified number
         for i = 1, dotCount do
             if frame.dotIcons[i] then
                 frame.dotIcons[i]:Show()
@@ -557,7 +586,7 @@ function SH:UpdateDotCount(frame)
         end
     end
     
-    -- Update layout after changing DoT count
+    -- update layout after changing DoT count
     self:UpdateIconLayout(frame)
 end
 
@@ -702,7 +731,7 @@ function SH:RegisterOptions()
                                         if self.timerFrame then
                                             self.timerFrame:SetWidth(value)
                                             self.timerFrame.titleBar:SetWidth(value)
-                                            self.timerFrame.secondaryIcon:SetPoint("RIGHT", self.timerFrame.titleBar, "RIGHT", -6, -5)
+                                            self:UpdateIconLayout(self.timerFrame)
                                         end
                                     end
                                 end,
@@ -720,6 +749,7 @@ function SH:RegisterOptions()
                                         self.db.profile.parentFrame.dimensions.height = value
                                         if self.timerFrame then
                                             self.timerFrame:SetHeight(value)
+                                            self:UpdateIconLayout(self.timerFrame)
                                         end
                                     end
                                 end,
