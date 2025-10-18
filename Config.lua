@@ -46,11 +46,7 @@ local PRIMARY_ICON_SIZE_MULTIPLIER = 0.7
 local MAX_DOT_COUNT = 3
 local TITLE_BAR_HEIGHT = 8
 
-
-
 function SH:CreateTimerFrame()
-
-
     local frame = CreateFrame("Frame", "StealthHelperFrame", UIParent)
     frame:SetSize(self.db.profile.parentFrame.dimensions.width, self.db.profile.parentFrame.dimensions.height)
     frame:SetPoint(self.db.profile.parentFrame.position.point, self.db.profile.parentFrame.position.relativeTo, self.db.profile.parentFrame.position.relativePoint, self.db.profile.parentFrame.position.xOffset, self.db.profile.parentFrame.position.yOffset)
@@ -179,7 +175,7 @@ function SH:CreateTimerFrame()
             self.isResizing = false
             self:SetScript("OnUpdate", nil)
             SH:UpdateFrameLayout(self:GetParent())
-            -- Ensure timer text visibility is updated after resize
+            -- ensure timer text visibility is updated after resize
             SH:UpdateTimerTextVisibility(self:GetParent())
         end
     end)
@@ -190,7 +186,7 @@ function SH:CreateTimerFrame()
             self.isResizing = false
             self:SetScript("OnUpdate", nil)
             SH:UpdateFrameLayout(self:GetParent())
-            -- Ensure timer text visibility is updated after resize
+            -- ensure timer text visibility is updated after resize
             SH:UpdateTimerTextVisibility(self:GetParent())
         end
         self.bg:SetColorTexture(0.2, 0.2, 0.2, 0)
@@ -586,7 +582,7 @@ function SH:UpdateTimer()
     end
 
     if #upcoming == 0 then
-        -- Hide all icons and timers when no DoTs are active
+        -- hide all icons and timers when no DoTs are active
         self:HideIcons()
         return
     end
@@ -596,7 +592,7 @@ function SH:UpdateTimer()
     local primary = upcoming[1]
     local primaryTime = primary.nextTick - now
     if primaryTime <= 0 then
-        -- Hide all icons and timers when DoTs have expired
+        -- hide all icons and timers when DoTs have expired
         self:HideIcons()
         return
     end
@@ -610,7 +606,7 @@ function SH:UpdateTimer()
     local dotCount = self.db.profile.parentFrame.dotCount
     local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
 
-    -- Filter out expired DoTs and only show active ones
+    -- filter out expired DoTs and only show active ones
     local activeDots = {}
     for i = 1, #upcoming do
         local dot = upcoming[i]
@@ -620,7 +616,7 @@ function SH:UpdateTimer()
         end
     end
     
-    -- First, hide all icons and timers
+    -- first, hide all icons and timers
     for i = 1, MAX_DOT_COUNT do
         if self.timerFrame.dotIcons and self.timerFrame.dotIcons[i] then
             self.timerFrame.dotIcons[i]:Hide()
@@ -630,14 +626,14 @@ function SH:UpdateTimer()
         end
     end
     
-    -- Then show only the active DoTs with dynamic layout
+    -- then show only the active DoTs with dynamic layout
     local activeCount = #activeDots
     for i = 1, maxDisplay do
         if activeDots[i] then
             local dot = activeDots[i]
             local timeUntilTick = dot.nextTick - now
             
-            -- Show icon and timer
+            -- show icon and timer
             if self.timerFrame.dotIcons and self.timerFrame.dotIcons[i] and dot.spellIcon then
                 self.timerFrame.dotIcons[i]:SetTexture(dot.spellIcon)
                 self.timerFrame.dotIcons[i]:Show()
@@ -649,14 +645,14 @@ function SH:UpdateTimer()
         end
     end
     
-    -- Update icon layout based on dynamic sizing setting
+    -- update icon layout based on dynamic sizing setting
     if self.db.profile.parentFrame.dynamicSizing then
         self:UpdateIconLayoutDynamic(self.timerFrame, activeCount)
     else
         self:UpdateIconLayout(self.timerFrame)
     end
     
-    -- Apply timer text visibility settings
+    -- apply timer text visibility settings
     self:UpdateTimerTextVisibility(self.timerFrame)
 end
 
@@ -750,7 +746,7 @@ function SH:UpdateTimerTextVisibility(frame)
     
     for i = 1, MAX_DOT_COUNT do
         if frame.dotTimers[i] then
-            -- Check if the corresponding icon is visible first
+            -- check if the corresponding icon is visible first
             local iconVisible = frame.dotIcons[i] and frame.dotIcons[i]:IsVisible()
             
             -- first check if this icon should be displayed based on DoT count
@@ -784,7 +780,7 @@ function SH:UpdateTimerTextVisibility(frame)
 end
 
 function SH:UpdateIconLayout(frame)
-    -- Try to use dynamic layout if we have active DoTs and dynamic sizing is enabled
+    -- try to use dynamic layout if we have active DoTs and dynamic sizing is enabled
     if self.db.profile.parentFrame.dynamicSizing and self.activeDots and frame and frame.dotIcons then
         local activeCount = 0
         for destGUID, dots in pairs(self.activeDots) do
@@ -799,7 +795,7 @@ function SH:UpdateIconLayout(frame)
         end
     end
     
-    -- Fallback to configured layout if no active DoTs
+    -- fallback to configured layout if no active DoTs
     if not frame or not frame.dotIcons then return end
     
     local containerWidth = frame:GetWidth()
@@ -884,7 +880,7 @@ function SH:UpdateIconLayoutDynamic(frame, activeCount)
         local secondarySize = primarySize * 0.5  -- Half the size of primary
         local spacing = 3  -- Keep icons close together
         
-        -- Calculate total width needed and center the group
+        -- calculate total width needed and center the group
         local totalWidth = primarySize + spacing + secondarySize
         local startX = -totalWidth / 2
         
@@ -1104,7 +1100,7 @@ function SH:ToggleTestMode()
 end
 
 function SH:StartTestMode()
-    -- Create sample test data with realistic durations
+    -- create sample test data with realistic durations
     local now = GetTime()
     self.testData = {
         {
@@ -1161,13 +1157,13 @@ function SH:UpdateTestTimer()
     local dotCount = self.db.profile.parentFrame.dotCount
     local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
     
-    -- Sort test data by next tick time and filter out expired ones
+    -- sort test data by next tick time and filter out expired ones
     local sortedData = {}
     for i, data in ipairs(self.testData) do
         local timeUntilTick = data.nextTick - now
         local timeSinceApplied = now - data.appliedAt
         
-        -- Check if DoT has expired naturally (after full duration)
+        -- check if DoT has expired naturally (after full duration)
         if timeSinceApplied >= data.duration then
             -- DoT has fallen off naturally - don't include it (permanently expired)
         elseif timeUntilTick > 0 then
@@ -1195,7 +1191,7 @@ function SH:UpdateTestTimer()
         return
     end
     
-    -- First, hide all icons and timers
+    -- first, hide all icons and timers
     for i = 1, MAX_DOT_COUNT do
         if self.timerFrame.dotIcons and self.timerFrame.dotIcons[i] then
             self.timerFrame.dotIcons[i]:Hide()
@@ -1205,7 +1201,7 @@ function SH:UpdateTestTimer()
         end
     end
     
-    -- Then show only the active DoTs with dynamic layout
+    -- then show only the active DoTs with dynamic layout
     local activeCount = #sortedData
     for i = 1, maxDisplay do
         if sortedData[i] then
@@ -1224,14 +1220,14 @@ function SH:UpdateTestTimer()
         end
     end
     
-    -- Update icon layout based on dynamic sizing setting
+    -- update icon layout based on dynamic sizing setting
     if self.db.profile.parentFrame.dynamicSizing then
         self:UpdateIconLayoutDynamic(self.timerFrame, activeCount)
     else
         self:UpdateIconLayout(self.timerFrame)
     end
     
-    -- Apply timer text visibility settings
+    -- apply timer text visibility settings
     self:UpdateTimerTextVisibility(self.timerFrame)
 end
 
