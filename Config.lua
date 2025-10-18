@@ -7,11 +7,11 @@ local defaults = {
     profile = {
         parentFrame = {
             position = {
-            point = "CENTER",
-            relativeTo = UIParent,
-            relativePoint = "CENTER",
-            xOffset = 0,
-            yOffset = 160,
+                point = "CENTER",
+                relativeTo = UIParent,
+                relativePoint = "CENTER",
+                xOffset = 0,
+                yOffset = 160,
             },
             dimensions = {
                 width = 80,
@@ -22,6 +22,15 @@ local defaults = {
             hideTitlebar = false,
             hideBackground = false,
             dotCount = 2,
+            timerText = {
+                fontSize = 10,
+                anchor = "BOTTOM",
+                xOffset = 2,
+                yOffset = -6,
+                hidden = false,
+                hideSecondary = false,
+                avoidOverlap = true,
+            },
         },
     }
 };
@@ -105,29 +114,24 @@ function SH:CreateTimerFrame()
         {r = 0.1, g = 0.1, b = 1, a = 1}  -- dark blue
     )
 
-    -- Create DoT icon slots
     frame.dotIcons = {}
     frame.dotTimers = {}
     
-    -- Create all icons with initial positioning - sizing will be handled dynamically
-    for i = 1, 4 do
+    for i = 1, MAX_DOT_COUNT do
         frame.dotIcons[i] = frame:CreateTexture(nil, "ARTWORK")
-        frame.dotIcons[i]:SetSize(32, 32) -- Initial size, will be updated
-        frame.dotIcons[i]:SetPoint("CENTER", frame, "CENTER", 0, 0) -- Initial position, will be updated
+        frame.dotIcons[i]:SetSize(32, 32) -- initial size, will be updated
+        frame.dotIcons[i]:SetPoint("CENTER", frame, "CENTER", 0, 0) -- initial position, will be updated
         frame.dotIcons[i]:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark") -- placeholder
         
         frame.dotTimers[i] = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        frame.dotTimers[i]:SetPoint("BOTTOM", frame.dotIcons[i], "BOTTOM", 0, -8)
         frame.dotTimers[i]:SetText(string.format("%.1fs", 1.5 - (i * 0.2))) -- placeholder timer text
         frame.dotTimers[i]:SetTextColor(1, 1, 1, 1) -- white text
         
-        -- Hide icons 3 and 4 initially
         if i > 2 then
             frame.dotIcons[i]:Hide()
             frame.dotTimers[i]:Hide()
         end
     end
-
 
     frame.resizeHandle = CreateFrame("Button", nil, frame)
     frame.resizeHandle:SetSize(16, 16)
@@ -171,9 +175,10 @@ function SH:CreateTimerFrame()
         if button == "LeftButton" and self.isResizing then
             self:GetParent():StopMovingOrSizing()
             self.isResizing = false
-            -- Stop real-time updates
             self:SetScript("OnUpdate", nil)
             SH:UpdateFrameLayout(self:GetParent())
+            -- Ensure timer text visibility is updated after resize
+            SH:UpdateTimerTextVisibility(self:GetParent())
         end
     end)
     
@@ -183,6 +188,8 @@ function SH:CreateTimerFrame()
             self.isResizing = false
             self:SetScript("OnUpdate", nil)
             SH:UpdateFrameLayout(self:GetParent())
+            -- Ensure timer text visibility is updated after resize
+            SH:UpdateTimerTextVisibility(self:GetParent())
         end
         self.bg:SetColorTexture(0.2, 0.2, 0.2, 0)
     end)
@@ -202,7 +209,6 @@ function SH:CreateTimerFrame()
     SH:UpdateDotCount(frame)
     SH:UpdateIconLayout(frame)
     
-    -- Ensure titlebar width matches frame width on creation
     frame.titleBar:SetWidth(frame:GetWidth())
     
     return frame
@@ -233,7 +239,7 @@ end
 function SH:HideIcons()
     if not self.timerFrame then return end
 
-    for i = 1, 4 do
+    for i = 1, MAX_DOT_COUNT do
         self:HideIcon(i)
     end
     if self.db.profile.parentFrame.hidden then
@@ -260,7 +266,7 @@ function SH:UpdateTimer()
     end
 
     if #upcoming == 0 then
-        -- Show placeholder timer text when no DoTs are active
+        -- show placeholder timer text when no DoTs are active
         local dotCount = self.db.profile.parentFrame.dotCount
         local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
         
@@ -270,7 +276,7 @@ function SH:UpdateTimer()
             end
         end
         
-        -- Hide unused timer slots
+        -- hide unused timer slots
         for i = maxDisplay + 1, MAX_DOT_COUNT do
             if self.timerFrame.dotTimers and self.timerFrame.dotTimers[i] then
                 self.timerFrame.dotTimers[i]:Hide()
@@ -284,7 +290,7 @@ function SH:UpdateTimer()
     local primary = upcoming[1]
     local primaryTime = primary.nextTick - now
     if primaryTime <= 0 then
-        -- Show placeholder timer text when DoTs have expired
+        -- show placeholder timer text when DoTs have expired
         local dotCount = self.db.profile.parentFrame.dotCount
         local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
         
@@ -294,8 +300,8 @@ function SH:UpdateTimer()
             end
         end
         
-        -- Hide unused timer slots
-        for i = maxDisplay + 1, 4 do
+        -- hide unused timer slots
+        for i = maxDisplay + 1, MAX_DOT_COUNT do
             if self.timerFrame.dotTimers and self.timerFrame.dotTimers[i] then
                 self.timerFrame.dotTimers[i]:Hide()
             end
@@ -308,17 +314,15 @@ function SH:UpdateTimer()
         timerFrame:Show()
     end
 
-    -- Get the number of DoTs to display
+    -- get the number of DoTs to display
     local dotCount = self.db.profile.parentFrame.dotCount
     local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
 
-    -- Display DoTs up to the configured count
+    -- display DoTs up to the configured count
     for i = 1, maxDisplay do
         if upcoming[i] then
             local dot = upcoming[i]
             local timeUntilTick = dot.nextTick - now
-            
-            -- Update icon and timer
             if self.timerFrame.dotIcons and self.timerFrame.dotIcons[i] then
                 self.timerFrame.dotIcons[i]:SetTexture(dot.spellIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
                 self.timerFrame.dotIcons[i]:Show()
@@ -338,7 +342,7 @@ function SH:UpdateTimer()
         end
     end
 
-    -- Hide any remaining slots beyond maxDisplay
+    -- hide any remaining slots beyond maxDisplay
     for i = maxDisplay + 1, MAX_DOT_COUNT do
         if self.timerFrame.dotIcons and self.timerFrame.dotIcons[i] then
             self.timerFrame.dotIcons[i]:Hide()
@@ -375,6 +379,95 @@ function SH:ToggleOptions()
     end
 end
 
+function SH:UpdateTimerTextSettings(frame)
+    if not frame or not frame.dotTimers then return end
+    
+    local fontSize = self.db.profile.parentFrame.timerText.fontSize
+    local anchor = self.db.profile.parentFrame.timerText.anchor
+    local xOffset = self.db.profile.parentFrame.timerText.xOffset
+    local yOffset = self.db.profile.parentFrame.timerText.yOffset
+    
+    for i = 1, MAX_DOT_COUNT do
+        if frame.dotTimers[i] then
+            frame.dotTimers[i]:SetFont("Fonts\\FRIZQT__.TTF", fontSize, "OUTLINE")
+            
+            local iconSize = frame.dotIcons[i]:GetWidth()
+            local halfSize = iconSize / 2
+            
+            local finalXOffset = xOffset
+            local finalYOffset = yOffset
+            
+            if anchor == "LEFT" then
+                finalXOffset = xOffset - halfSize
+            elseif anchor == "RIGHT" then
+                finalXOffset = xOffset + halfSize
+            elseif anchor == "TOP" then
+                finalYOffset = yOffset + halfSize
+            elseif anchor == "BOTTOM" then
+                finalYOffset = yOffset - halfSize
+            elseif anchor == "TOPLEFT" then
+                finalXOffset = xOffset - halfSize
+                finalYOffset = yOffset + halfSize
+            elseif anchor == "TOPRIGHT" then
+                finalXOffset = xOffset + halfSize
+                finalYOffset = yOffset + halfSize
+            elseif anchor == "BOTTOMLEFT" then
+                finalXOffset = xOffset - halfSize
+                finalYOffset = yOffset - halfSize
+            elseif anchor == "BOTTOMRIGHT" then
+                finalXOffset = xOffset + halfSize
+                finalYOffset = yOffset - halfSize
+            end
+            
+            frame.dotTimers[i]:SetPoint("CENTER", frame.dotIcons[i], "CENTER", finalXOffset, finalYOffset)
+        end
+    end
+    self:UpdateTimerTextVisibility(frame)
+end
+
+function SH:UpdateTimerTextVisibility(frame)
+    if not frame or not frame.dotTimers then return end
+    
+    local hidden = self.db.profile.parentFrame.timerText.hidden
+    local hideSecondary = self.db.profile.parentFrame.timerText.hideSecondary
+    local avoidOverlap = self.db.profile.parentFrame.timerText.avoidOverlap
+    local dotCount = self.db.profile.parentFrame.dotCount
+    local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
+    
+    -- check if frame is too small for timer texts
+    local frameWidth = frame:GetWidth()
+    local frameHeight = frame:GetHeight()
+    local isFrameTooSmall = avoidOverlap and dotCount > 2 and (frameWidth < 90 or frameHeight < 60)
+    
+    for i = 1, MAX_DOT_COUNT do
+        if frame.dotTimers[i] then
+            -- first check if this icon should be displayed based on DoT count
+            if i > maxDisplay then
+                -- hide timer text for icons beyond the current DoT count
+                frame.dotTimers[i]:Hide()
+            elseif hidden then
+                -- hide all timer texts
+                frame.dotTimers[i]:Hide()
+            elseif isFrameTooSmall then
+                -- hide timer texts when frame is too small
+                if i == 1 and not hideSecondary then
+                    -- keep primary timer text if not hiding secondary
+                    frame.dotTimers[i]:Show()
+                else
+                    -- hide all other timer texts when frame is small
+                    frame.dotTimers[i]:Hide()
+                end
+            elseif hideSecondary and i > 1 then
+                -- hide only secondary timer texts (icons 2 and 3)
+                frame.dotTimers[i]:Hide()
+            else
+                -- show timer text
+                frame.dotTimers[i]:Show()
+            end
+        end
+    end
+end
+
 function SH:UpdateIconLayout(frame)
     if not frame or not frame.dotIcons then return end
     
@@ -399,7 +492,7 @@ function SH:UpdateIconLayout(frame)
         frame.dotIcons[1]:SetSize(iconSize, iconSize)
         frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", 0, -TITLE_BAR_HEIGHT / 2)
     else
-        -- Multiple icons - calculate if they fit, scale down if needed
+        -- multiple icons - calculate if they fit, scale down if needed
         local spacing = 5
         local totalWidthNeeded = basePrimarySize + spacing + (baseSecondarySize + spacing) * (maxDisplay - 1)
         
@@ -417,17 +510,20 @@ function SH:UpdateIconLayout(frame)
         local totalWidth = primarySize + spacing + (secondarySize + spacing) * (maxDisplay - 1)
         local startX = -totalWidth / 2
         
-        -- Primary icon (next tick) - always first and largest
+        -- primary icon (next tick) - always first and largest
         frame.dotIcons[1]:SetSize(primarySize, primarySize)
         frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", startX + primarySize/2, -TITLE_BAR_HEIGHT / 2)
         
-        -- Secondary icons (other DoTs) - evenly spaced and smaller
+        -- secondary icons (other DoTs) - evenly spaced and smaller
         for i = 2, maxDisplay do
             local xOffset = startX + primarySize + spacing + (secondarySize + spacing) * (i - 2) + secondarySize/2
             frame.dotIcons[i]:SetSize(secondarySize, secondarySize)
             frame.dotIcons[i]:SetPoint("CENTER", frame, "CENTER", xOffset, -TITLE_BAR_HEIGHT / 2)
         end
     end
+    
+    -- update timer text positioning after icon layout is set
+    self:UpdateTimerTextSettings(frame)
 end
 
 function SH:UpdateIconLayoutOnly(frame)
@@ -483,6 +579,9 @@ function SH:UpdateIconLayoutOnly(frame)
             frame.dotIcons[i]:SetPoint("CENTER", frame, "CENTER", xOffset, -TITLE_BAR_HEIGHT / 2)
         end
     end
+    
+    -- Update timer text positioning after icon layout is set
+    self:UpdateTimerTextSettings(frame)
 end
 
 function SH:UpdateFrameLayout(frame)
@@ -554,7 +653,7 @@ function SH:UpdateDotCount(frame)
     local dotCount = self.db.profile.parentFrame.dotCount
     
     -- hide all icons first
-    for i = 1, 4 do
+    for i = 1, MAX_DOT_COUNT do
         if frame.dotIcons[i] then
             frame.dotIcons[i]:Hide()
         end
@@ -566,7 +665,7 @@ function SH:UpdateDotCount(frame)
     -- show icons and timers based on count
     if dotCount == 0 then
         -- show all icons and timers
-        for i = 1, 4 do
+        for i = 1, MAX_DOT_COUNT do
             if frame.dotIcons[i] then
                 frame.dotIcons[i]:Show()
             end
@@ -655,11 +754,111 @@ function SH:RegisterOptions()
                             self:UpdateDotCount(self.timerFrame)
                         end,
                     },
+                    timerText = {
+                        name = "Timer Text",
+                        type = "group",
+                        inline = true,
+                        order = 6,
+                        args = {
+                            hidden = {
+                                name = "Hide Timer Texts",
+                                type = "toggle",
+                                order = 1,
+                                get = function() return self.db.profile.parentFrame.timerText.hidden end,
+                                set = function(info, value)
+                                    self.db.profile.parentFrame.timerText.hidden = value
+                                    self:UpdateTimerTextVisibility(self.timerFrame)
+                                end,
+                            },
+                            hideSecondary = {
+                                name = "Hide Secondary Timer Texts",
+                                desc = "Hide timer texts for secondary DoT icons (icons 2 and 3), keeping only the primary timer text visible.",
+                                type = "toggle",
+                                order = 2,
+                                get = function() return self.db.profile.parentFrame.timerText.hideSecondary end,
+                                set = function(info, value)
+                                    self.db.profile.parentFrame.timerText.hideSecondary = value
+                                    self:UpdateTimerTextVisibility(self.timerFrame)
+                                end,
+                            },
+                            avoidOverlap = {
+                                name = "Avoid Overlap",
+                                desc = "Automatically hide secondary timer texts when the frame is too small to display them without overlapping.",
+                                type = "toggle",
+                                order = 3,
+                                get = function() return self.db.profile.parentFrame.timerText.avoidOverlap end,
+                                set = function(info, value)
+                                    self.db.profile.parentFrame.timerText.avoidOverlap = value
+                                    self:UpdateTimerTextVisibility(self.timerFrame)
+                                end,
+                            },
+                            fontSize = {
+                                name = "Font Size",
+                                type = "range",
+                                order = 4,
+                                min = 6,
+                                max = 20,
+                                step = 1,
+                                get = function() return self.db.profile.parentFrame.timerText.fontSize end,
+                                set = function(info, value)
+                                    self.db.profile.parentFrame.timerText.fontSize = value
+                                    self:UpdateTimerTextSettings(self.timerFrame)
+                                end,
+                            },
+                            anchor = {
+                                name = "Anchor Point",
+                                type = "select",
+                                order = 5,
+                                values = {
+                                    ["CENTER"] = "Center",
+                                    ["LEFT"] = "Left",
+                                    ["RIGHT"] = "Right",
+                                    ["TOP"] = "Top",
+                                    ["BOTTOM"] = "Bottom",
+                                    ["TOPLEFT"] = "Top Left",
+                                    ["TOPRIGHT"] = "Top Right",
+                                    ["BOTTOMLEFT"] = "Bottom Left",
+                                    ["BOTTOMRIGHT"] = "Bottom Right",
+                                },
+                                get = function() return self.db.profile.parentFrame.timerText.anchor end,
+                                set = function(info, value)
+                                    self.db.profile.parentFrame.timerText.anchor = value
+                                    self:UpdateTimerTextSettings(self.timerFrame)
+                                end,
+                            },
+                            xOffset = {
+                                name = "X Offset",
+                                type = "range",
+                                order = 6,
+                                min = -50,
+                                max = 50,
+                                step = 1,
+                                get = function() return self.db.profile.parentFrame.timerText.xOffset end,
+                                set = function(info, value)
+                                    self.db.profile.parentFrame.timerText.xOffset = value
+                                    self:UpdateTimerTextSettings(self.timerFrame)
+                                end,
+                            },
+                            yOffset = {
+                                name = "Y Offset",
+                                type = "range",
+                                order = 7,
+                                min = -50,
+                                max = 50,
+                                step = 1,
+                                get = function() return self.db.profile.parentFrame.timerText.yOffset end,
+                                set = function(info, value)
+                                    self.db.profile.parentFrame.timerText.yOffset = value
+                                    self:UpdateTimerTextSettings(self.timerFrame)
+                                end,
+                            },
+                        },
+                    },
                     position = {
                         name = "Position",
                         type = "group",
                         inline = true,
-                        order = 6,
+                        order = 8,
                         args = {
                             x = {
                                 name = "X Offset",
@@ -715,7 +914,7 @@ function SH:RegisterOptions()
                         name = "Dimensions",
                         type = "group",
                         inline = true,
-                        order = 7,
+                        order = 8,
                         args = {
                             width = {
                                 name = "Width",
@@ -759,7 +958,7 @@ function SH:RegisterOptions()
                     reset = {
                         name = "Reset to Default",
                         type = "execute",
-                        order = 8,
+                        order = 9,
                         func = function()
                             StaticPopup_Show("STEALTHHELPER_RESET_CONFIRM")
                         end,
@@ -780,30 +979,40 @@ function SH:RegisterStaticPopups()
         button2 = "No",
         OnAccept = function()
             self.db.profile.parentFrame.position = {
-                point = "CENTER",
-                relativeTo = UIParent,
-                relativePoint = "CENTER",
-                xOffset = 0,
-                yOffset = 160,
+                point = defaults.profile.parentFrame.position.point,
+                relativeTo = defaults.profile.parentFrame.position.relativeTo,
+                relativePoint = defaults.profile.parentFrame.position.relativePoint,
+                xOffset = defaults.profile.parentFrame.position.xOffset,
+                yOffset = defaults.profile.parentFrame.position.yOffset,
             }
             self.db.profile.parentFrame.dimensions = {
-                width = 80,
-                height = 48,
+                width = defaults.profile.parentFrame.dimensions.width,
+                height = defaults.profile.parentFrame.dimensions.height,
             }
-            self.db.profile.parentFrame.locked = false
-            self.db.profile.parentFrame.hidden = false
-            self.db.profile.parentFrame.hideTitlebar = false
-            self.db.profile.parentFrame.hideBackground = false
-            self.db.profile.parentFrame.dotCount = 2
+            self.db.profile.parentFrame.locked = defaults.profile.parentFrame.locked
+            self.db.profile.parentFrame.hidden = defaults.profile.parentFrame.hidden
+            self.db.profile.parentFrame.hideTitlebar = defaults.profile.parentFrame.hideTitlebar
+            self.db.profile.parentFrame.hideBackground = defaults.profile.parentFrame.hideBackground
+            self.db.profile.parentFrame.dotCount = defaults.profile.parentFrame.dotCount
+            self.db.profile.parentFrame.timerText = {
+                fontSize = defaults.profile.parentFrame.timerText.fontSize,
+                anchor = defaults.profile.parentFrame.timerText.anchor,
+                xOffset = defaults.profile.parentFrame.timerText.xOffset,
+                yOffset = defaults.profile.parentFrame.timerText.yOffset,
+                hidden = defaults.profile.parentFrame.timerText.hidden,
+                hideSecondary = defaults.profile.parentFrame.timerText.hideSecondary,
+                avoidOverlap = defaults.profile.parentFrame.timerText.avoidOverlap,
+            }
             if self.timerFrame then
                 self.timerFrame:ClearAllPoints()
-                self.timerFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 160)
-                self.timerFrame:SetSize(80, 48)
+                self.timerFrame:SetPoint(defaults.profile.parentFrame.position.point, defaults.profile.parentFrame.position.relativeTo, defaults.profile.parentFrame.position.relativePoint, defaults.profile.parentFrame.position.xOffset, defaults.profile.parentFrame.position.yOffset)
+                self.timerFrame:SetSize(defaults.profile.parentFrame.dimensions.width, defaults.profile.parentFrame.dimensions.height)
                 self:UpdateFrameLayout(self.timerFrame)
                 self:UpdateFrameLockState(self.timerFrame)
                 self:UpdateFrameVisibility(self.timerFrame)
                 self:UpdateTitlebarVisibility(self.timerFrame)
                 self:UpdateDotCount(self.timerFrame)
+                self:UpdateTimerTextSettings(self.timerFrame)
             end
         end,
         timeout = 0,
