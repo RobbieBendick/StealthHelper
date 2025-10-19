@@ -6,6 +6,7 @@ SH.spellGroups = {
     ["Corruption"] = {interval = 3, ranks = {172, 6222, 6223, 7648, 11671, 11672, 25311, 27216}},
     ["Immolate"] = {interval = 3, ranks = {348, 707, 1094, 2941, 11665, 11667, 11668, 25309, 27215}},
     ["Curse of Agony"] = {interval = 2, ranks = {980, 1014, 6217, 11711, 11712, 11713, 27218}},
+    ["Siphon Life"] = {interval = 3, ranks = {18265, 18879, 18880, 18881, 27264, 30911}}
     
     -- rogue
     ["Garrote"] = {interval = 3, ranks = {703, 8631, 8632, 8633, 11289, 11290, 26839, 26884}},
@@ -25,6 +26,7 @@ SH.spellGroups = {
     
     -- mage
     ["Fireball"] = {interval = 2, ranks = {133, 143, 145, 3140, 8400, 8401, 8402, 10148, 10149, 10150, 10151, 25306, 27070, 38692}},
+    ["Ignite"] = {interval = 2, ranks = {11119, 11120, 12846, 12847, 12848}},
     
     -- hunter
     ["Serpent Sting"] = {interval = 3, ranks = {1978, 13549, 13550, 13551, 13552, 13553, 13554, 13555, 25295, 27016}},
@@ -33,6 +35,13 @@ SH.spellGroups = {
     -- warrior
     ["Deep Wounds"] = {interval = 1, ranks = {12865, 12866, 12867}},
     ["Rend"] = {interval = 3, ranks = {772, 6546, 6547, 6548, 11572, 11573, 11574, 25208}},
+
+    -- shaman
+    ["Flame Shock"] = {interval = 3, ranks = {8050, 8052, 8053, 10447, 10448, 29228, 25457}},
+
+    -- paladin
+    -- TODO: Add ranks for Seal of Vengeance
+    -- ["Seal of Vengeance"] = {interval = 3, ranks = {}},
 }
 
 -- build the spell id -> tick interval lookup table

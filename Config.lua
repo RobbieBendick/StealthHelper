@@ -544,10 +544,9 @@ function SH:HideIcons()
 end
 
 function SH:UpdateTimer()
-    
     local now = GetTime()
     local upcoming = {}
-
+ 
     for destGUID, dots in pairs(self.activeDots) do
         for spellId, dot in pairs(dots) do
             local elapsed = now - dot.appliedAt
@@ -572,7 +571,7 @@ function SH:UpdateTimer()
             end
         end
     end
-    
+
     if #upcoming == 0 then
         -- hide all icons and timers when no DoTs are active
         self:HideIcons()

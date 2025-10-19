@@ -5,22 +5,24 @@ SH.activeDots = {}
 
 function SH:COMBAT_LOG_EVENT_UNFILTERED()
     local _, event, _, sourceGUID, sourceName, _, _, destGUID, destName, _, _, spellId, spellName, _, auraType = CombatLogGetCurrentEventInfo()
+    if destGUID ~= UnitGUID("player") then
+        return
+    end
     
     if (event == "SPELL_AURA_APPLIED" or event == "SPELL_AURA_REFRESH") and auraType == "DEBUFF" then
         self:EnsureTicker()
         local tickInterval = self.dotTickIntervals[spellId]
-        local duration, icon
+        local icon
         for i = 1, 40 do
             local debuffName, debuffRank, debuffIcon, debuffCount, debuffType, debuffDuration, debuffExpirationTime, debuffSource, debuffIsStealable, debuffShouldConsolidate, debuffSpellId = UnitDebuff(destName, i)
             if not debuffName then break end
             if debuffSpellId == spellId then
-                duration = debuffDuration
                 icon = debuffIcon
                 break
             end
         end
         
-        if duration and tickInterval then
+        if tickInterval then
             self.activeDots[destGUID] = self.activeDots[destGUID] or {}
             self.activeDots[destGUID][spellId] = {
                 caster = sourceGUID,
@@ -28,12 +30,9 @@ function SH:COMBAT_LOG_EVENT_UNFILTERED()
                 spellId = spellId,
                 spellIcon = icon or C_Spell.GetSpellTexture(spellId),
                 tickInterval = tickInterval,
-                duration = duration,
                 appliedAt = GetTime(),
             }
 
-            print(string.format("[DoT Applied] %s on %s: %ds duration, ticks every %ds",
-                spellName, destName or "?", duration, tickInterval))
         end
     elseif event == "SPELL_AURA_REMOVED" and self.activeDots[destGUID] then
         if self.activeDots[destGUID][spellId] then
@@ -43,6 +42,14 @@ function SH:COMBAT_LOG_EVENT_UNFILTERED()
             self.activeDots[destGUID] = nil
         end
         self:StopTickerIfEmpty()
+
+    elseif event == "UNIT_DIED" then
+        self.activeDots = {}
+        if self.timerTicker then
+            self.timerTicker:Cancel()
+            self.timerTicker = nil
+        end
+        self:HideIcons()
     end
 end
 
@@ -62,7 +69,7 @@ function SH:StopTickerIfEmpty()
         end
     end
 
-    -- no DoTs found, stop ticker
+    self.activeDots = {}
     self.timerTicker:Cancel()
     self.timerTicker = nil
 end
