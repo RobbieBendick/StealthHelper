@@ -21,8 +21,6 @@ function SH:COMBAT_LOG_EVENT_UNFILTERED()
         end
         
         if duration and tickInterval then
-            local numTicks = math.floor(duration / tickInterval + 0.5)
-
             self.activeDots[destGUID] = self.activeDots[destGUID] or {}
             self.activeDots[destGUID][spellId] = {
                 caster = sourceGUID,
@@ -30,12 +28,12 @@ function SH:COMBAT_LOG_EVENT_UNFILTERED()
                 spellId = spellId,
                 spellIcon = icon or C_Spell.GetSpellTexture(spellId),
                 tickInterval = tickInterval,
-                numTicks = numTicks,
+                duration = duration,
                 appliedAt = GetTime(),
             }
 
-            print(string.format("[DoT Applied] %s on %s: %d ticks every %ds",
-                spellName, destName or "?", numTicks, tickInterval))
+            print(string.format("[DoT Applied] %s on %s: %ds duration, ticks every %ds",
+                spellName, destName or "?", duration, tickInterval))
         end
     elseif event == "SPELL_AURA_REMOVED" and self.activeDots[destGUID] then
         if self.activeDots[destGUID][spellId] then

@@ -23,12 +23,12 @@ local defaults = {
             hideBackground = false,
             dotCount = 2,
             testMode = false,
-            dynamicSizing = true,
+            dynamicSizing = false,
             timerText = {
                 fontSize = 10,
                 anchor = "BOTTOM",
                 xOffset = 2,
-                yOffset = -6,
+                yOffset = -8,
                 hidden = false,
                 hideSecondary = false,
                 avoidOverlap = true,
@@ -77,24 +77,26 @@ function SH:CreateTimerFrame()
     frame:SetScript("OnSizeChanged", function(self, width, height)
         if self._isAdjustingSize then return end
         
-        if width < MIN_CONTAINER_WIDTH then
-            self._isAdjustingSize = true
-            self:SetWidth(MIN_CONTAINER_WIDTH)
-            self._isAdjustingSize = false
-        elseif width > MAX_CONTAINER_WIDTH then
-            self._isAdjustingSize = true
-            self:SetWidth(MAX_CONTAINER_WIDTH)
-            self._isAdjustingSize = false
-        end
-        
-        if height < MIN_CONTAINER_HEIGHT then
-            self._isAdjustingSize = true
-            self:SetHeight(MIN_CONTAINER_HEIGHT)
-            self._isAdjustingSize = false
-        elseif height > MAX_CONTAINER_HEIGHT then
-            self._isAdjustingSize = true
-            self:SetHeight(MAX_CONTAINER_HEIGHT)
-            self._isAdjustingSize = false
+        if self.resizeHandle and self.resizeHandle.isResizing then
+            if width < MIN_CONTAINER_WIDTH then
+                self._isAdjustingSize = true
+                self:SetWidth(MIN_CONTAINER_WIDTH)
+                self._isAdjustingSize = false
+            elseif width > MAX_CONTAINER_WIDTH then
+                self._isAdjustingSize = true
+                self:SetWidth(MAX_CONTAINER_WIDTH)
+                self._isAdjustingSize = false
+            end
+            
+            if height < MIN_CONTAINER_HEIGHT then
+                self._isAdjustingSize = true
+                self:SetHeight(MIN_CONTAINER_HEIGHT)
+                self._isAdjustingSize = false
+            elseif height > MAX_CONTAINER_HEIGHT then
+                self._isAdjustingSize = true
+                self:SetHeight(MAX_CONTAINER_HEIGHT)
+                self._isAdjustingSize = false
+            end
         end
     end)
     frame.titleBar = CreateFrame("Frame", "StealthHelperTitleBar", frame)
@@ -163,7 +165,7 @@ function SH:CreateTimerFrame()
                 if self.isResizing then
                     local frame = self:GetParent()
                     frame.titleBar:SetWidth(frame:GetWidth())
-                    SH:UpdateIconLayoutOnly(frame)
+                    SH:UpdateIconLayout(frame)
                 end
             end)
         end
@@ -175,7 +177,6 @@ function SH:CreateTimerFrame()
             self.isResizing = false
             self:SetScript("OnUpdate", nil)
             SH:UpdateFrameLayout(self:GetParent())
-            -- ensure timer text visibility is updated after resize
             SH:UpdateTimerTextVisibility(self:GetParent())
         end
     end)
@@ -186,7 +187,6 @@ function SH:CreateTimerFrame()
             self.isResizing = false
             self:SetScript("OnUpdate", nil)
             SH:UpdateFrameLayout(self:GetParent())
-            -- ensure timer text visibility is updated after resize
             SH:UpdateTimerTextVisibility(self:GetParent())
         end
         self.bg:SetColorTexture(0.2, 0.2, 0.2, 0)
@@ -240,12 +240,17 @@ function SH:RegisterOptions()
                     },
                     lock = {
                         name = "Lock Frame",
+                        desc = "Locks the frame and hides the titlebar and background.",
                         type = "toggle",
                         order = 2,
                         get = function() return self.db.profile.parentFrame.locked end,
                         set = function(info, value)
                             self.db.profile.parentFrame.locked = value
+                            self.db.profile.parentFrame.hideTitlebar = value
+                            self.db.profile.parentFrame.hideBackground = value
                             self:UpdateFrameLockState(self.timerFrame)
+                            self:UpdateTitlebarVisibility(self.timerFrame)
+                            self:UpdateBackgroundVisibility(self.timerFrame)
                         end,
                     },
                     hide = {
@@ -258,30 +263,10 @@ function SH:RegisterOptions()
                             self:UpdateFrameVisibility(self.timerFrame)
                         end,
                     },
-                    hideTitlebar = {
-                        name = "Hide Titlebar",
-                        type = "toggle",
-                        order = 4,
-                        get = function() return self.db.profile.parentFrame.hideTitlebar end,
-                        set = function(info, value)
-                            self.db.profile.parentFrame.hideTitlebar = value
-                            self:UpdateTitlebarVisibility(self.timerFrame)
-                        end,
-                    },
-                    hideBackground = {
-                        name = "Hide Background",
-                        type = "toggle",
-                        order = 5,
-                        get = function() return self.db.profile.parentFrame.hideBackground end,
-                        set = function(info, value)
-                            self.db.profile.parentFrame.hideBackground = value
-                            self:UpdateBackgroundVisibility(self.timerFrame)
-                        end,
-                    },
                     dotCount = {
                         name = "DoT Count",
                         type = "select",
-                        order = 6,
+                        order = 4,
                         values = {
                             [1] = "1 DoT",
                             [2] = "2 DoTs",
@@ -291,13 +276,14 @@ function SH:RegisterOptions()
                         set = function(info, value)
                             self.db.profile.parentFrame.dotCount = value
                             self:UpdateDotCount(self.timerFrame)
+                            self:UpdateIconLayout(self.timerFrame)
                         end,
                     },
                     dynamicSizing = {
                         name = "Dynamic Sizing",
-                        desc = "Automatically adjust icon layout based on the number of active DoTs. Primary icon is always double the size of secondary icons. When disabled, uses the configured DoT count for layout.",
+                        desc = "Automatically adjust icon layout based on the number of active DoTs. When disabled, the icon layout will always be the same as the configured DoT count.",
                         type = "toggle",
-                        order = 7,
+                        order = 5,
                         get = function() return self.db.profile.parentFrame.dynamicSizing end,
                         set = function(info, value)
                             self.db.profile.parentFrame.dynamicSizing = value
@@ -308,7 +294,7 @@ function SH:RegisterOptions()
                         name = "Timer Text",
                         type = "group",
                         inline = true,
-                        order = 8,
+                        order = 6,
                         args = {
                             hidden = {
                                 name = "Hide Timer Texts",
@@ -408,7 +394,7 @@ function SH:RegisterOptions()
                         name = "Position",
                         type = "group",
                         inline = true,
-                        order = 9,
+                        order = 7,
                         args = {
                             x = {
                                 name = "X Offset",
@@ -464,7 +450,7 @@ function SH:RegisterOptions()
                         name = "Dimensions",
                         type = "group",
                         inline = true,
-                        order = 10,
+                        order = 8,
                         args = {
                             width = {
                                 name = "Width",
@@ -508,7 +494,7 @@ function SH:RegisterOptions()
                     reset = {
                         name = "Reset to Default",
                         type = "execute",
-                        order = 11,
+                        order = 9,
                         func = function()
                             StaticPopup_Show("STEALTHHELPER_RESET_CONFIRM")
                         end,
@@ -558,11 +544,6 @@ function SH:HideIcons()
 end
 
 function SH:UpdateTimer()
-    -- if test mode is active, use test data instead
-    if self.db.profile.parentFrame.testMode and self.testData then
-        self:UpdateTestTimer()
-        return
-    end
     
     local now = GetTime()
     local upcoming = {}
@@ -570,20 +551,43 @@ function SH:UpdateTimer()
     for destGUID, dots in pairs(self.activeDots) do
         for spellId, dot in pairs(dots) do
             local elapsed = now - dot.appliedAt
-            local ticksElapsed = math.floor(elapsed / dot.tickInterval)
-            local nextTick = dot.appliedAt + (ticksElapsed + 1) * dot.tickInterval
-            table.insert(upcoming, { 
-                spellId = spellId, 
-                nextTick = nextTick,
-                spellIcon = dot.spellIcon,
-                spellName = dot.spellName
-            })
+            
+            -- Check if DoT has expired based on duration
+            if dot.duration and elapsed >= dot.duration then
+                -- DoT has expired, remove it
+                dots[spellId] = nil
+                if next(dots) == nil then
+                    self.activeDots[destGUID] = nil
+                end
+            else
+                -- DoT is still active, calculate next tick
+                local ticksElapsed = math.floor(elapsed / dot.tickInterval)
+                local nextTick = dot.appliedAt + (ticksElapsed + 1) * dot.tickInterval
+                table.insert(upcoming, { 
+                    spellId = spellId, 
+                    nextTick = nextTick,
+                    spellIcon = dot.spellIcon,
+                    spellName = dot.spellName
+                })
+            end
         end
     end
-
+    
     if #upcoming == 0 then
         -- hide all icons and timers when no DoTs are active
         self:HideIcons()
+        
+        -- if we're in test mode and no DoTs are active, disable test mode
+        if self.db.profile.parentFrame.testMode then
+            self.db.profile.parentFrame.testMode = false
+            if self.testTicker then
+                self.testTicker:Cancel()
+                self.testTicker = nil
+            end
+            self.activeDots = {}
+            AceConfigRegistry:NotifyChange(self.name)
+            self:Print("No active test DoTs remaining, stopping test mode.")
+        end
         return
     end
 
@@ -627,7 +631,7 @@ function SH:UpdateTimer()
     end
     
     -- then show only the active DoTs with dynamic layout
-    local activeCount = #activeDots
+    local activeCount = math.min(#activeDots, maxDisplay)
     for i = 1, maxDisplay do
         if activeDots[i] then
             local dot = activeDots[i]
@@ -738,11 +742,28 @@ function SH:UpdateTimerTextVisibility(frame)
     local avoidOverlap = self.db.profile.parentFrame.timerText.avoidOverlap
     local dotCount = self.db.profile.parentFrame.dotCount
     local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
+    local now = GetTime()
+    local upcoming = {}
+
+    for destGUID, dots in pairs(self.activeDots) do
+        for spellId, dot in pairs(dots) do
+            local elapsed = now - dot.appliedAt
+            local ticksElapsed = math.floor(elapsed / dot.tickInterval)
+            local nextTick = dot.appliedAt + (ticksElapsed + 1) * dot.tickInterval
+            table.insert(upcoming, { 
+                spellId = spellId, 
+                nextTick = nextTick,
+                spellIcon = dot.spellIcon,
+                spellName = dot.spellName
+            })
+        end
+    end
+    local activeCount = math.min(#upcoming, maxDisplay)
     
     -- check if frame is too small for timer texts
     local frameWidth = frame:GetWidth()
     local frameHeight = frame:GetHeight()
-    local isFrameTooSmall = avoidOverlap and dotCount > 2 and (frameWidth < 90 or frameHeight < 60)
+    local isFrameTooSmall = avoidOverlap and activeCount > 2 and (frameWidth < 90 or frameHeight < 60)
     
     for i = 1, MAX_DOT_COUNT do
         if frame.dotTimers[i] then
@@ -782,14 +803,18 @@ end
 function SH:UpdateIconLayout(frame)
     -- try to use dynamic layout if we have active DoTs and dynamic sizing is enabled
     if self.db.profile.parentFrame.dynamicSizing and self.activeDots and frame and frame.dotIcons then
-        local activeCount = 0
+        local totalActiveCount = 0
         for destGUID, dots in pairs(self.activeDots) do
             for spellId, dot in pairs(dots) do
-                activeCount = activeCount + 1
+                totalActiveCount = totalActiveCount + 1
             end
         end
         
-        if activeCount > 0 then
+        if totalActiveCount > 0 then
+            -- respect the user's dotCount setting for dynamic sizing
+            local dotCount = self.db.profile.parentFrame.dotCount
+            local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
+            local activeCount = math.min(totalActiveCount, maxDisplay)
             self:UpdateIconLayoutDynamic(frame, activeCount)
             return
         end
@@ -875,10 +900,19 @@ function SH:UpdateIconLayoutDynamic(frame, activeCount)
         frame.dotIcons[1]:SetSize(iconSize, iconSize)
         frame.dotIcons[1]:SetPoint("CENTER", frame, "CENTER", 0, -TITLE_BAR_HEIGHT / 2)
     elseif activeCount == 2 then
-        -- two icons side by side - primary is double the size of secondary
-        local primarySize = math.min(availableWidth * 0.4, availableHeight * 0.8)
-        local secondarySize = primarySize * 0.5  -- Half the size of primary
+        -- two icons - use same sizes as regular layout but closer positioning
         local spacing = 3  -- Keep icons close together
+        local totalWidthNeeded = basePrimarySize + spacing + baseSecondarySize
+        
+        -- scale down if icons don't fit in available width
+        local scaleFactor = 1
+        if totalWidthNeeded > availableWidth then
+            scaleFactor = availableWidth / totalWidthNeeded
+        end
+        
+        -- apply scaling (same as regular layout)
+        local primarySize = basePrimarySize * scaleFactor
+        local secondarySize = baseSecondarySize * scaleFactor
         
         -- calculate total width needed and center the group
         local totalWidth = primarySize + spacing + secondarySize
@@ -893,7 +927,7 @@ function SH:UpdateIconLayoutDynamic(frame, activeCount)
         frame.dotIcons[2]:SetPoint("CENTER", frame, "CENTER", startX + primarySize + spacing + secondarySize / 2, -TITLE_BAR_HEIGHT / 2)
     elseif activeCount >= 3 then
         -- three or more icons - use original layout logic
-        local spacing = 3  -- Keep icons close together
+        local spacing = 5
         local totalWidthNeeded = basePrimarySize + spacing + (baseSecondarySize + spacing) * 2
         
         -- scale down if icons don't fit in available width
@@ -995,7 +1029,6 @@ function SH:UpdateFrameLayout(frame)
     self.db.profile.parentFrame.dimensions.width = newWidth
     self.db.profile.parentFrame.dimensions.height = newHeight
     
-    -- update icon layout when frame is resized
     self:UpdateIconLayout(frame)
     
     AceConfigRegistry:NotifyChange(self.name)
@@ -1102,41 +1135,45 @@ end
 function SH:StartTestMode()
     -- create sample test data with realistic durations
     local now = GetTime()
-    self.testData = {
-        {
-            spellId = 172, -- Corruption
+    local testTargetGUID = "test-target-1"
+    
+    -- Clear existing activeDots and populate with test data
+    self.activeDots = {}
+    self.activeDots[testTargetGUID] = {
+        [172] = { -- Corruption
+            caster = "test-player-caster",
             spellName = "Corruption",
-            spellIcon = "Interface\\Icons\\Spell_Shadow_AbominationExplosion",
-            nextTick = now + 1.2,
-            appliedAt = now,
-            duration = 12, -- 12 second duration
+            spellId = 172,
+            spellIcon = C_Spell.GetSpellTexture(172),
             tickInterval = 3,
-        },
-        {
-            spellId = 980, -- Curse of Agony
-            spellName = "Curse of Agony", 
-            spellIcon = "Interface\\Icons\\Spell_Shadow_CurseOfSargeras",
-            nextTick = now + 0.8,
+            duration = 12,
             appliedAt = now,
-            duration = 18, -- 18 second duration
-            tickInterval = 2,
         },
-        {
-            spellId = 703, -- Garrote
+        [980] = { -- Curse of Agony
+            caster = "test-player-caster",
+            spellName = "Curse of Agony",
+            spellId = 980,
+            spellIcon = C_Spell.GetSpellTexture(980),
+            tickInterval = 2,
+            duration = 18,
+            appliedAt = now,
+        },
+        [703] = { -- Garrote
+            caster = "test-player-caster",
             spellName = "Garrote",
-            spellIcon = "Interface\\Icons\\Ability_Rogue_Garrote",
-            nextTick = now + 1.5,
-            appliedAt = now,
-            duration = 6, -- 6 second duration (shortest)
+            spellId = 703,
+            spellIcon = C_Spell.GetSpellTexture(703),
             tickInterval = 2,
+            duration = 10,
+            appliedAt = now,
         }
     }
     
     if not self.testTicker then
-        self.testTicker = C_Timer.NewTicker(0.1, function() self:UpdateTestTimer() end)
+        self.testTicker = C_Timer.NewTicker(0.1, function() self:UpdateTimer() end)
     end
     
-    self:Print("Test mode enabled")
+    self:Print("Test mode enabled.")
 end
 
 function SH:StopTestMode()
@@ -1144,92 +1181,21 @@ function SH:StopTestMode()
         self.testTicker:Cancel()
         self.testTicker = nil
     end
-    self.testData = nil
+    -- clear test data
+    self.activeDots = {}
     self:HideIcons()
+
+    self.db.profile.parentFrame.testMode = false
+    if self.testTicker then
+        self.testTicker:Cancel()
+        self.testTicker = nil
+    end
+
+    AceConfigRegistry:NotifyChange(self.name)
     
-    self:Print("Test mode disabled")
+    self:Print("Test mode disabled.")
 end
 
-function SH:UpdateTestTimer()
-    if not self.testData or not self.timerFrame then return end
-    
-    local now = GetTime()
-    local dotCount = self.db.profile.parentFrame.dotCount
-    local maxDisplay = (dotCount == 0) and MAX_DOT_COUNT or dotCount
-    
-    -- sort test data by next tick time and filter out expired ones
-    local sortedData = {}
-    for i, data in ipairs(self.testData) do
-        local timeUntilTick = data.nextTick - now
-        local timeSinceApplied = now - data.appliedAt
-        
-        -- check if DoT has expired naturally (after full duration)
-        if timeSinceApplied >= data.duration then
-            -- DoT has fallen off naturally - don't include it (permanently expired)
-        elseif timeUntilTick > 0 then
-            -- DoT is still active
-            table.insert(sortedData, data)
-        else
-            -- DoT tick has occurred, calculate next tick
-            local ticksElapsed = math.floor(timeSinceApplied / data.tickInterval)
-            data.nextTick = data.appliedAt + (ticksElapsed + 1) * data.tickInterval
-            table.insert(sortedData, data)
-        end
-    end
-    table.sort(sortedData, function(a, b) return a.nextTick < b.nextTick end)
-    
-    -- if no active DoTs remain, disable test mode
-    if #sortedData == 0 then
-        self:Print("No active test DoTs remaining, stopping test mode")
-        if self.testTicker then
-            self.testTicker:Cancel()
-            self.testTicker = nil
-        end
-        self.testData = nil
-        self:HideIcons()
-        self.db.profile.parentFrame.testMode = false
-        return
-    end
-    
-    -- first, hide all icons and timers
-    for i = 1, MAX_DOT_COUNT do
-        if self.timerFrame.dotIcons and self.timerFrame.dotIcons[i] then
-            self.timerFrame.dotIcons[i]:Hide()
-        end
-        if self.timerFrame.dotTimers and self.timerFrame.dotTimers[i] then
-            self.timerFrame.dotTimers[i]:Hide()
-        end
-    end
-    
-    -- then show only the active DoTs with dynamic layout
-    local activeCount = #sortedData
-    for i = 1, maxDisplay do
-        if sortedData[i] then
-            local data = sortedData[i]
-            local timeUntilTick = data.nextTick - now
-            
-            -- show icon and timer
-            if self.timerFrame.dotIcons and self.timerFrame.dotIcons[i] then
-                self.timerFrame.dotIcons[i]:SetTexture(data.spellIcon)
-                self.timerFrame.dotIcons[i]:Show()
-            end
-            if self.timerFrame.dotTimers and self.timerFrame.dotTimers[i] then
-                self.timerFrame.dotTimers[i]:SetText(string.format("%.1fs", timeUntilTick))
-                self.timerFrame.dotTimers[i]:Show()
-            end
-        end
-    end
-    
-    -- update icon layout based on dynamic sizing setting
-    if self.db.profile.parentFrame.dynamicSizing then
-        self:UpdateIconLayoutDynamic(self.timerFrame, activeCount)
-    else
-        self:UpdateIconLayout(self.timerFrame)
-    end
-    
-    -- apply timer text visibility settings
-    self:UpdateTimerTextVisibility(self.timerFrame)
-end
 
 function SH:RegisterStaticPopups()
     StaticPopupDialogs["STEALTHHELPER_RESET_CONFIRM"] = {
@@ -1272,6 +1238,7 @@ function SH:RegisterStaticPopups()
                 self:UpdateFrameLockState(self.timerFrame)
                 self:UpdateFrameVisibility(self.timerFrame)
                 self:UpdateTitlebarVisibility(self.timerFrame)
+                self:UpdateBackgroundVisibility(self.timerFrame)
                 self:UpdateDotCount(self.timerFrame)
                 self:UpdateTimerTextSettings(self.timerFrame)
             end
