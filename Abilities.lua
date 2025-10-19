@@ -6,7 +6,7 @@ SH.spellGroups = {
     ["Corruption"] = {interval = 3, ranks = {172, 6222, 6223, 7648, 11671, 11672, 25311, 27216}},
     ["Immolate"] = {interval = 3, ranks = {348, 707, 1094, 2941, 11665, 11667, 11668, 25309, 27215}},
     ["Curse of Agony"] = {interval = 2, ranks = {980, 1014, 6217, 11711, 11712, 11713, 27218}},
-    ["Siphon Life"] = {interval = 3, ranks = {18265, 18879, 18880, 18881, 27264, 30911}}
+    ["Siphon Life"] = {interval = 3, ranks = {18265, 18879, 18880, 18881, 27264, 30911}},
     
     -- rogue
     ["Garrote"] = {interval = 3, ranks = {703, 8631, 8632, 8633, 11289, 11290, 26839, 26884}},
